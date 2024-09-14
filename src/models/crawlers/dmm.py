@@ -128,8 +128,15 @@ def get_director(html):
 
 
 def get_ountline(html):
+    # result = html.xpath(
+    #     "normalize-space(string(//div[@class='wp-smplex']/preceding-sibling::div[contains(@class, 'mg-b20')][1]))")
     result = html.xpath(
-        "normalize-space(string(//div[@class='wp-smplex']/preceding-sibling::div[contains(@class, 'mg-b20')][1]))")
+        "normalize-space(string(//table[@class='mg-b12']/tr/td//div[contains(@class, 'mg-b20 lh4')]/text()))"
+    )
+    if not result:
+        result = html.xpath(
+           "normalize-space(string(//table[@class='mg-b12']/tr/td//div[contains(@class, 'mg-b20 lh4')]/p/text()))" 
+        )
     return result.replace('「コンビニ受取」対象商品です。詳しくはこちらをご覧ください。', '').strip()
 
 
