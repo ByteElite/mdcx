@@ -101,7 +101,7 @@ def get_big_pic_by_amazon(json_data, originaltitle_amazon, actor_amazon):
         return ''
     hd_pic_url = ''
     originaltitle_amazon = re.sub(r'【.*】', '', originaltitle_amazon)
-    originaltitle_amazon_list = [originaltitle_amazon]
+    originaltitle_amazon_list = [json_data["number"],originaltitle_amazon]
     for originaltitle_amazon in originaltitle_amazon_list:
         # 需要两次urlencode，nb_sb_noss表示无推荐来源
         url_search = 'https://www.amazon.co.jp/black-curtain/save-eligibility/black-curtain?returnUrl=/s?k=' + urllib.parse.quote_plus(
