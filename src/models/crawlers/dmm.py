@@ -137,12 +137,10 @@ def get_ountline(html):
     # result = html.xpath(
     #     "normalize-space(string(//div[@class='wp-smplex']/preceding-sibling::div[contains(@class, 'mg-b20')][1]))")
     result = html.xpath(
-        "normalize-space(string(//table[@class='mg-b12']/tr/td//div[contains(@class, 'mg-b20 lh4')]/text()))"
+        "normalize-space(string(//table[@class='mg-b12']//div[@class='mg-b20 lh4']))"
     )
-    if not result:
-        result = html.xpath(
-           "normalize-space(string(//table[@class='mg-b12']/tr/td//div[contains(@class, 'mg-b20 lh4')]/p/text()))" 
-        )
+    result = result.split("※")[0]
+    result = result.split("-----")[0]
     return result.replace("「コンビニ受取」対象商品です。詳しくはこちらをご覧ください。", "").strip()
 
 
