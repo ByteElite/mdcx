@@ -50,15 +50,8 @@ jobs:
 
           # https://docs.github.com/en/actions/using-github-hosted-runners/about-github-hosted-runners/about-github-hosted-runners
 
-          items+=('{"build": "macos", "os": "macos-latest", "arch": "aarch64"}')
-          items+=('{"build": "macos", "os": "macos-13", "arch": "x86_64"}')
 
           items+=('{"build": "windows", "os": "windows-latest", "arch": "x86_64"}')
-
-          # macOS 10.15.7, x86_64, 指定opencv版本
-          if [[ -n "${{ vars.BUILD_FOR_MACOS_LEGACY }}" && -n "${{ vars.MACOS_LEGACY_CV_VERSION }}" ]]; then
-            items+=('{"build": "macos", "os": "macos-13", "arch": "x86_64", "cv": "${{ vars.MACOS_LEGACY_CV_VERSION }}", "tail": "-legacy"}')
-          fi
 
           # win7, x86_64, python3.8
           if [[ -n "${{ vars.BUILD_FOR_WINDOWS_LEGACY }}" ]]; then
@@ -91,14 +84,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Before setup-python
-        if: ${{ matrix.build == 'macos' }}
-        run: |
-          # 如果指定了cv，则修改requirements-mac.txt里的opencv版本
-          cvVersion="${{ matrix.cv }}"
-          if [ -n "$cvVersion" ]; then
-            sed -i '' "s/opencv-contrib-python-headless==.*/opencv-contrib-python-headless==${cvVersion}/" requirements-mac.txt
-          fi
 
       - name: Set up Python - cache pip
         if: ${{ matrix.cache != 'none' }}
@@ -118,15 +103,6 @@ jobs:
         if: ${{ matrix.build == 'windows' }}
         run: ./build-action
 
-      - name: Get changelog
-        id: get-changelog
-        if: ${{ matrix.build == 'macos' }}
-        run: |
-          echo 'CHANGELOG<<EOF' >> $GITHUB_OUTPUT
-          cat changelog.md >> $GITHUB_OUTPUT
-          echo 'EOF' >> $GITHUB_OUTPUT
-
-      
 
       - name: Create Release - Windows
         uses: svenstaro/upload-release-action@2.7.0
