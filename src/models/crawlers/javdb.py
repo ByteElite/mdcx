@@ -144,7 +144,7 @@ def get_score(html):
     try:
         score = re.findall(r"(\d{1}\..+)分", result)
         if score:
-            score = score[0]
+            score = "{:.2f}".format(float(score[0])*2)
         else:
             score = ""
     except:
