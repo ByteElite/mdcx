@@ -100,7 +100,7 @@ def get_tag(html):
 def get_mini_cover(html):
     temp_result = html.xpath('//meta[@property="og:image"]/@content')
     if temp_result:
-        return temp_result.replace("ps.jpg", "pl.jpg")
+        return temp_result[0].replace("ps.jpg", "pl.jpg")
     return ""
 
 def get_cover(html):
