@@ -509,7 +509,6 @@ def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: s
             LogBuffer.log().write(f"\n 🍀 Thumb done! (copy cd-fanart)({get_used_time(start_time)}s)")
             return True
 
-    # 复制thumb
     mini_cover_url = json_data.get("mini_cover")
     if mini_cover_url:
         thumb_final_path_temp = thumb_final_path
@@ -517,7 +516,7 @@ def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: s
             thumb_final_path_temp = thumb_final_path + ".[DOWNLOAD].jpg"
         if not check_url(mini_cover_url):
             LogBuffer.log().write(
-                    f"\n 🟠 检测到 Thumb 图片失效! 跳过！({cover_from})({get_used_time(start_time)}s) " + each[1]
+                    f"\n 🟠 检测到 Thumb 图片失效! 跳过！({mini_cover_url})({get_used_time(start_time)}s) "
                 )
         else:
             if download_file_with_filepath(mini_cover_url, thumb_final_path_temp, folder_new_path):
