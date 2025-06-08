@@ -99,16 +99,18 @@ def get_tag(html):
 
 def get_mini_cover(html):
     temp_result = html.xpath('//meta[@property="og:image"]/@content')
-    return temp_result[0] if temp_result else ""
+    if temp_result:
+        return temp_result.replace("ps.jpg", "pl.jpg")
+    return ""
 
 def get_cover(html):
     res = get_mini_cover(html)
-    if get_mini_cover(html):
+    if res:
         result = re.sub(r"pics.dmm.co.jp", r"awsimgsrc.dmm.co.jp/pics_dig", res)
         if check_url(result):
-            return result.replace("ps.jpg", "pl.jpg")
+            return result
         else:
-            return res.replace("ps.jpg", "pl.jpg")
+            return res
     else:
         return ""
 
