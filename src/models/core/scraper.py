@@ -294,7 +294,7 @@ def _scrape_one_file(file_path: str, file_info: tuple, file_mode: FileMode) -> t
                 return False, json_data  # 返回MDCx1_1main, 继续处理下一个文件
 
             # 下载艺术图
-            fanart_download(json_data, fanart_final_path)
+            fanart_download(json_data, folder_new_path,fanart_final_path)
 
             # 下载poster
             if not poster_download(json_data, folder_new_path, poster_final_path):

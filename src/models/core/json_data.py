@@ -226,6 +226,7 @@ def new_json_data() -> JsonData:
         "thumb_path": "",
         "fanart_path": "",
         "cover": "",
+        "mini_cover": "",
         "poster": "",
         "extrafanart": "",
         "actor_amazon": [],

@@ -421,102 +421,6 @@ def trailer_download(
         return True
 
 
-def _get_big_thumb(json_data: ImageContext) -> ImageContext:
-    """
-    获取背景大图：
-    1，官网图片
-    2，Amazon 图片
-    3，Google 搜图
-    """
-    start_time = time.time()
-    if "thumb" not in config.download_hd_pics:
-        return json_data
-    number = json_data["number"]
-    letters = json_data["letters"]
-    number_lower_line = number.lower()
-    number_lower_no_line = number_lower_line.replace("-", "")
-    thumb_width = 0
-
-    # faleno.jp 番号检查，都是大图，返回即可
-    if json_data["cover_from"] in ["faleno", "dahlia"]:
-        if json_data["cover"]:
-            LogBuffer.log().write(f"\n 🖼 HD Thumb found! ({json_data['cover_from']})({get_used_time(start_time)}s)")
-        json_data["poster_big"] = True
-        return json_data
-
-    # prestige 图片有的是大图，需要检测图片分辨率
-    elif json_data["cover_from"] in ["prestige", "mgstage"]:
-        if json_data["cover"]:
-            thumb_width, h = get_imgsize(json_data["cover"])
-
-    # 片商官网查询
-    elif "official" in config.download_hd_pics:
-        # faleno.jp 番号检查
-        if re.findall(r"F[A-Z]{2}SS", number):
-            req_url = f"https://faleno.jp/top/works/{number_lower_no_line}/"
-            result, response = get_html(req_url)
-            if result:
-                temp_url = re.findall(
-                    r'src="((https://cdn.faleno.net/top/wp-content/uploads/[^_]+_)([^?]+))\?output-quality=', response
-                )
-                if temp_url:
-                    json_data["cover"] = temp_url[0][0]
-                    json_data["poster"] = temp_url[0][1] + "2125.jpg"
-                    json_data["cover_from"] = "faleno"
-                    json_data["poster_from"] = "faleno"
-                    json_data["poster_big"] = True
-                    trailer_temp = re.findall(r'class="btn09"><a class="pop_sample" href="([^"]+)', response)
-                    if trailer_temp:
-                        json_data["trailer"] = trailer_temp[0]
-                        json_data["trailer_from"] = "faleno"
-                    LogBuffer.log().write(f"\n 🖼 HD Thumb found! (faleno)({get_used_time(start_time)}s)")
-                    return json_data
-
-        # km-produce.com 番号检查
-        number_letter = letters.lower()
-        kmp_key = ["vrkm", "mdtm", "mkmp", "savr", "bibivr", "scvr", "slvr", "averv", "kbvr", "cbikmv"]
-        prestige_key = ["abp", "abw", "aka", "prdvr", "pvrbst", "sdvr", "docvr"]
-        if number_letter in kmp_key:
-            req_url = f"https://km-produce.com/img/title1/{number_lower_line}.jpg"
-            real_url = check_url(req_url)
-            if real_url:
-                json_data["cover"] = real_url
-                json_data["cover_from"] = "km-produce"
-                LogBuffer.log().write(f"\n 🖼 HD Thumb found! (km-produce)({get_used_time(start_time)}s)")
-                return json_data
-
-        # www.prestige-av.com 番号检查
-        elif number_letter in prestige_key:
-            number_num = re.findall(r"\d+", number)[0]
-            if number_letter == "abw" and int(number_num) > 280:
-                pass
-            else:
-                req_url = f"https://www.prestige-av.com/api/media/goods/prestige/{number_letter}/{number_num}/pb_{number_lower_line}.jpg"
-                if number_letter == "docvr":
-                    req_url = f"https://www.prestige-av.com/api/media/goods/doc/{number_letter}/{number_num}/pb_{number_lower_line}.jpg"
-                if get_imgsize(req_url)[0] >= 800:
-                    json_data["cover"] = req_url
-                    json_data["poster"] = req_url.replace("/pb_", "/pf_")
-                    json_data["cover_from"] = "prestige"
-                    json_data["poster_from"] = "prestige"
-                    json_data["poster_big"] = True
-                    LogBuffer.log().write(f"\n 🖼 HD Thumb found! (prestige)({get_used_time(start_time)}s)")
-                    return json_data
-
-    # 使用google以图搜图
-    pic_url = json_data.get("cover")
-    if "google" in config.download_hd_pics:
-        if pic_url and json_data["cover_from"] != "theporndb":
-            thumb_url, cover_size = get_big_pic_by_google(pic_url)
-            if thumb_url and cover_size[0] > thumb_width:
-                json_data["cover_size"] = cover_size
-                pic_domain = re.findall(r"://([^/]+)", thumb_url)[0]
-                json_data["cover_from"] = f"Google({pic_domain})"
-                json_data["cover"] = thumb_url
-                LogBuffer.log().write(f"\n 🖼 HD Thumb found! ({json_data['cover_from']})({get_used_time(start_time)}s)")
-
-    return json_data
-
 
 def _get_big_poster(json_data: JsonData) -> JsonData:
     start_time = time.time()
@@ -556,46 +460,6 @@ def _get_big_poster(json_data: JsonData) -> JsonData:
         if json_data["poster_from"] == "Amazon":
             json_data["image_download"] = True
 
-    # 通过番号去 官网 查询获取稍微大一些的封面图，以便去 Google 搜索
-    if (
-        not hd_pic_url
-        and "official" in config.download_hd_pics
-        and "official" not in config.website_set
-        and json_data["poster_from"] != "Amazon"
-    ):
-        letters = json_data["letters"].upper()
-        official_url = config.official_websites.get(letters)
-        if official_url:
-            url_search = official_url + "/search/list?keyword=" + number.replace("-", "")
-            result, html_search = get_html(url_search)
-            if result:
-                poster_url_list = re.findall(r'img class="c-main-bg lazyload" data-src="([^"]+)"', html_search)
-                if poster_url_list:
-                    # 使用官网图作为封面去 google 搜索
-                    poster_url = poster_url_list[0]
-                    json_data["poster"] = poster_url
-                    json_data["poster_from"] = official_url.split(".")[-2].replace("https://", "")
-                    # vr作品或者官网图片高度大于500时，下载封面图开
-                    if "VR" in number.upper() or get_imgsize(poster_url)[1] > 500:
-                        json_data["image_download"] = True
-
-    # 使用google以图搜图，放在最后是因为有时有错误，比如 kawd-943
-    poster_url = json_data.get("poster")
-    if (
-        not hd_pic_url
-        and poster_url
-        and "google" in config.download_hd_pics
-        and json_data["poster_from"] != "theporndb"
-    ):
-        hd_pic_url, poster_size = get_big_pic_by_google(poster_url, poster=True)
-        if hd_pic_url:
-            if "prestige" in json_data["poster"] or json_data["poster_from"] == "Amazon":
-                poster_width = get_imgsize(poster_url)[0]
-            if poster_size[0] > poster_width:
-                json_data["poster"] = hd_pic_url
-                json_data["poster_size"] = poster_size
-                pic_domain = re.findall(r"://([^/]+)", hd_pic_url)[0]
-                json_data["poster_from"] = f"Google({pic_domain})"
 
     # 如果找到了高清链接，则替换
     if hd_pic_url:
@@ -605,25 +469,30 @@ def _get_big_poster(json_data: JsonData) -> JsonData:
     return json_data
 
 
-def thumb_download(json_data: ImageContext, folder_new_path: str, thumb_final_path: str) -> bool:
+def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: str) -> bool:
+    """
+    只从fanza获取thumb,通常是800x538的分辨率
+    """
     start_time = time.time()
-    poster_path = json_data["poster_path"]
     thumb_path = json_data["thumb_path"]
     fanart_path = json_data["fanart_path"]
+    download_files = config.download_files
+    keep_files = config.keep_files
 
-    # 本地存在 thumb.jpg，且勾选保留旧文件时，不下载
-    if thumb_path and "thumb" in config.keep_files:
-        LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s) ")
+    # 不保留不下载时删除返回
+    if ",thumb" not in keep_files and ",thumb" not in download_files:
+        if fanart_path and os.path.exists(fanart_path):
+            delete_file(fanart_path)
         return True
 
-    # 如果thumb不下载，看fanart、poster要不要下载，都不下载则返回
-    if "thumb" not in config.download_files:
-        if "poster" in config.download_files and ("poster" not in config.keep_files or not poster_path):
-            pass
-        elif "fanart" in config.download_files and ("fanart" not in config.keep_files or not fanart_path):
-            pass
-        else:
-            return True
+    # 保留，并且本地存在 fanart.jpg，不下载返回
+    if ",thumb" in keep_files and fanart_path:
+        LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s)")
+        return True
+
+    # 不下载时，返回
+    if ",thumb" not in download_files:
+        return True
 
     # 尝试复制其他分集。看分集有没有下载，如果下载完成则可以复制，否则就自行下载
     if json_data["cd_part"]:
@@ -633,93 +502,59 @@ def thumb_download(json_data: ImageContext, folder_new_path: str, thumb_final_pa
             and os.path.exists(done_thumb_path)
             and split_path(done_thumb_path)[0] == split_path(thumb_final_path)[0]
         ):
+            if thumb_path:
+                delete_file(thumb_path)
             copy_file(done_thumb_path, thumb_final_path)
-            LogBuffer.log().write(f"\n 🍀 Thumb done! (copy cd-thumb)({get_used_time(start_time)}s) ")
-            json_data["cover_from"] = "copy cd-thumb"
             json_data["thumb_path"] = thumb_final_path
+            LogBuffer.log().write(f"\n 🍀 Thumb done! (copy cd-fanart)({get_used_time(start_time)}s)")
             return True
 
-    # 获取高清背景图
-    json_data = _get_big_thumb(json_data)
-
-    # 下载图片
-    cover_url = json_data.get("cover")
-    cover_from = json_data.get("cover_from")
-    if cover_url:
-        cover_list = json_data["cover_list"]
-        while (cover_from, cover_url) in cover_list:
-            cover_list.remove((cover_from, cover_url))
-        cover_list.insert(0, (cover_from, cover_url))
-
+    # 复制thumb
+    mini_cover_url = json_data.get("mini_cover")
+    if mini_cover_url:
         thumb_final_path_temp = thumb_final_path
         if os.path.exists(thumb_final_path):
             thumb_final_path_temp = thumb_final_path + ".[DOWNLOAD].jpg"
-        for each in cover_list:
-            if not each[1]:
-                continue
-            cover_from, cover_url = each
-            cover_url = check_url(cover_url)
-            if not cover_url:
-                LogBuffer.log().write(
+        if not check_url(mini_cover_url):
+            LogBuffer.log().write(
                     f"\n 🟠 检测到 Thumb 图片失效! 跳过！({cover_from})({get_used_time(start_time)}s) " + each[1]
                 )
-                continue
-            json_data["cover_from"] = cover_from
-            if download_file_with_filepath(cover_url, thumb_final_path_temp, folder_new_path):
-                cover_size = check_pic(thumb_final_path_temp)
-                if cover_size:
-                    if (
-                        not cover_from.startswith("Google")
-                        or cover_size == json_data["cover_size"]
-                        or (
-                            cover_size[0] >= 800
-                            and abs(
-                                cover_size[0] / cover_size[1] - json_data["cover_size"][0] / json_data["cover_size"][1]
-                            )
-                            <= 0.1
-                        )
-                    ):
-                        # 图片下载正常，替换旧的 thumb.jpg
-                        if thumb_final_path_temp != thumb_final_path:
-                            move_file(thumb_final_path_temp, thumb_final_path)
-                            delete_file(thumb_final_path_temp)
-                        if json_data["cd_part"]:
-                            dic = {"thumb": thumb_final_path}
-                            Flags.file_done_dic[json_data["number"]].update(dic)
-                        json_data["thumb_marked"] = False  # 表示还没有走加水印流程
-                        LogBuffer.log().write(
-                            f"\n 🍀 Thumb done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
-                        )
-                        json_data["thumb_path"] = thumb_final_path
-                        return True
-                    else:
-                        delete_file(thumb_final_path_temp)
-                        LogBuffer.log().write(
-                            f"\n 🟠 检测到 Thumb 分辨率不对{str(cover_size)}! 已删除 ({cover_from})({get_used_time(start_time)}s)"
-                        )
-                        continue
-                LogBuffer.log().write(f"\n 🟠 Thumb download failed! {cover_from}: {cover_url} ")
+        else:
+            if download_file_with_filepath(mini_cover_url, thumb_final_path_temp, folder_new_path):
+                if thumb_final_path_temp != thumb_final_path:
+                    move_file(thumb_final_path_temp,thumb_final_path)
+                    delete_file(thumb_final_path_temp)
+                if json_data["cd_part"]:
+                    dic = {"thumb": thumb_final_path}
+                    Flags.file_done_dic[json_data["number"]].update(dic)
+                json_data["thumb_marked"] = False
+                LogBuffer.log().write(
+                    f"\n 🍀 Fanart done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
+                )
+                json_data["thumb_path"] = thumb_final_path
+        
     else:
         LogBuffer.log().write("\n 🟠 Thumb url is empty! ")
-
-    # 下载失败，本地有图
     if thumb_path:
-        LogBuffer.log().write("\n 🟠 Thumb download failed! 将继续使用之前的图片！")
-        LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s) ")
+        LogBuffer.log().write("\n 🟠 Thumb copy failed! 未找到 thumb 图片，将继续使用之前的图片！")
+        LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s)")
         return True
+
     else:
-        if "ignore_pic_fail" in config.download_files:
-            LogBuffer.log().write("\n 🟠 Thumb download failed! (你已勾选「图片下载失败时，不视为失败！」) ")
+        if "ignore_pic_fail" in download_files:
+            LogBuffer.log().write("\n 🟠 Thumb failed! (你已勾选「图片下载失败时，不视为失败！」) ")
             LogBuffer.log().write(f"\n 🍀 Thumb done! (none)({get_used_time(start_time)}s)")
             return True
         else:
             LogBuffer.log().write(
-                "\n 🔴 Thumb download failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」 "
+                "\n 🔴 Thumb failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」 "
             )
             LogBuffer.error().write(
-                "Thumb download failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」"
+                "Thumb 下载失败！你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」"
             )
             return False
+
+            
 
 
 def poster_download(json_data: JsonData, folder_new_path: str, poster_final_path: str) -> bool:
@@ -869,30 +704,25 @@ def poster_download(json_data: JsonData, folder_new_path: str, poster_final_path
             return False
 
 
-def fanart_download(json_data: JsonData, fanart_final_path: str) -> bool:
-    """
-    复制thumb为fanart
-    """
+def fanart_download(json_data: ImageContext, folder_new_path: str, fanart_final_path: str) -> bool:
     start_time = time.time()
+    poster_path = json_data["poster_path"]
     thumb_path = json_data["thumb_path"]
     fanart_path = json_data["fanart_path"]
-    download_files = config.download_files
-    keep_files = config.keep_files
 
-    # 不保留不下载时删除返回
-    if ",fanart" not in keep_files and ",fanart" not in download_files:
-        if fanart_path and os.path.exists(fanart_path):
-            delete_file(fanart_path)
+    # 本地存在 fanart.jpg，且勾选保留旧文件时，不下载
+    if fanart_path and "fanart" in config.keep_files:
+        LogBuffer.log().write(f"\n 🍀 Fanart done! (old)({get_used_time(start_time)}s) ")
         return True
 
-    # 保留，并且本地存在 fanart.jpg，不下载返回
-    if ",fanart" in keep_files and fanart_path:
-        LogBuffer.log().write(f"\n 🍀 Fanart done! (old)({get_used_time(start_time)}s)")
-        return True
-
-    # 不下载时，返回
-    if ",fanart" not in download_files:
-        return True
+    # 如果fanart不下载，看thumb、poster要不要下载，都不下载则返回
+    if "fanart" not in config.download_files:
+        if "poster" in config.download_files and ("poster" not in config.keep_files or not poster_path):
+            pass
+        elif "thumb" in config.download_files and ("thumb" not in config.keep_files or not fanart_path):
+            pass
+        else:
+            return True
 
     # 尝试复制其他分集。看分集有没有下载，如果下载完成则可以复制，否则就自行下载
     if json_data["cd_part"]:
@@ -902,45 +732,175 @@ def fanart_download(json_data: JsonData, fanart_final_path: str) -> bool:
             and os.path.exists(done_fanart_path)
             and split_path(done_fanart_path)[0] == split_path(fanart_final_path)[0]
         ):
-            if fanart_path:
-                delete_file(fanart_path)
             copy_file(done_fanart_path, fanart_final_path)
+            LogBuffer.log().write(f"\n 🍀 Fanart done! (copy cd-fanart)({get_used_time(start_time)}s) ")
+            json_data["cover_from"] = "copy cd-fanart"
             json_data["fanart_path"] = fanart_final_path
-            LogBuffer.log().write(f"\n 🍀 Fanart done! (copy cd-fanart)({get_used_time(start_time)}s)")
             return True
 
-    # 复制thumb
-    if thumb_path:
-        if fanart_path:
-            delete_file(fanart_path)
-        copy_file(thumb_path, fanart_final_path)
-        json_data["fanart_path"] = fanart_final_path
-        json_data["fanart_marked"] = json_data["thumb_marked"]
-        LogBuffer.log().write(f"\n 🍀 Fanart done! (copy thumb)({get_used_time(start_time)}s)")
-        if json_data["cd_part"]:
-            dic = {"fanart": fanart_final_path}
-            Flags.file_done_dic[json_data["number"]].update(dic)
+    # 获取高清背景图
+    json_data = _get_big_fanart(json_data)
+
+    # 下载图片
+    cover_url = json_data.get("cover")
+    cover_from = json_data.get("cover_from")
+    if cover_url:
+        cover_list = json_data["cover_list"]
+        while (cover_from, cover_url) in cover_list:
+            cover_list.remove((cover_from, cover_url))
+        cover_list.insert(0, (cover_from, cover_url))
+
+        fanart_final_path_temp = fanart_final_path
+        if os.path.exists(fanart_final_path):
+            fanart_final_path_temp = fanart_final_path + ".[DOWNLOAD].jpg"
+        for each in cover_list:
+            if not each[1]:
+                continue
+            cover_from, cover_url = each
+            cover_url = check_url(cover_url)
+            if not cover_url:
+                LogBuffer.log().write(
+                    f"\n 🟠 检测到 Fanart 图片失效! 跳过！({cover_from})({get_used_time(start_time)}s) " + each[1]
+                )
+                continue
+            json_data["cover_from"] = cover_from
+            if download_file_with_filepath(cover_url, fanart_final_path_temp, folder_new_path):
+                cover_size = check_pic(fanart_final_path_temp)
+                if cover_size:
+                    if (
+                        not cover_from.startswith("Google")
+                        or cover_size == json_data["cover_size"]
+                        or (
+                            cover_size[0] >= 800
+                            and abs(
+                                cover_size[0] / cover_size[1] - json_data["cover_size"][0] / json_data["cover_size"][1]
+                            )
+                            <= 0.1
+                        )
+                    ):
+                        # 图片下载正常，替换旧的 thumb.jpg
+                        if fanart_final_path_temp != fanart_final_path:
+                            move_file(fanart_final_path_temp, fanart_final_path)
+                            delete_file(fanart_final_path_temp)
+                        if json_data["cd_part"]:
+                            dic = {"fanart": fanart_final_path}
+                            Flags.file_done_dic[json_data["number"]].update(dic)
+                        json_data["fanart_marked"] = False  # 表示还没有走加水印流程
+                        LogBuffer.log().write(
+                            f"\n 🍀 Fanart done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
+                        )
+                        json_data["fanart_path"] = fanart_final_path
+                        return True
+                    else:
+                        delete_file(fanart_final_path_temp)
+                        LogBuffer.log().write(
+                            f"\n 🟠 检测到 Fanart 分辨率不对{str(cover_size)}! 已删除 ({cover_from})({get_used_time(start_time)}s)"
+                        )
+                        continue
+                LogBuffer.log().write(f"\n 🟠 Fanart download failed! {cover_from}: {cover_url} ")
+    else:
+        LogBuffer.log().write("\n 🟠 Fanart url is empty! ")
+
+    # 下载失败，本地有图
+    if fanart_path:
+        LogBuffer.log().write("\n 🟠 Fanart download failed! 将继续使用之前的图片！")
+        LogBuffer.log().write(f"\n 🍀 Fanart done! (old)({get_used_time(start_time)}s) ")
         return True
     else:
-        # 本地有 fanart 时，不下载
-        if fanart_path:
-            LogBuffer.log().write("\n 🟠 Fanart copy failed! 未找到 thumb 图片，将继续使用之前的图片！")
-            LogBuffer.log().write(f"\n 🍀 Fanart done! (old)({get_used_time(start_time)}s)")
+        if "ignore_pic_fail" in config.download_files:
+            LogBuffer.log().write("\n 🟠 Fanart download failed! (你已勾选「图片下载失败时，不视为失败！」) ")
+            LogBuffer.log().write(f"\n 🍀 Fanart done! (none)({get_used_time(start_time)}s)")
             return True
-
         else:
-            if "ignore_pic_fail" in download_files:
-                LogBuffer.log().write("\n 🟠 Fanart failed! (你已勾选「图片下载失败时，不视为失败！」) ")
-                LogBuffer.log().write(f"\n 🍀 Fanart done! (none)({get_used_time(start_time)}s)")
-                return True
+            LogBuffer.log().write(
+                "\n 🔴 Fanart download failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」 "
+            )
+            LogBuffer.error().write(
+                "Fanart download failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」"
+            )
+            return False
+
+def _get_big_fanart(json_data: ImageContext) -> ImageContext:
+    """
+    获取背景大图：
+    1，官网图片
+    2，Amazon 图片
+    3，Google 搜图
+    """
+    start_time = time.time()
+    if "thumb" not in config.download_hd_pics:
+        return json_data
+    number = json_data["number"]
+    letters = json_data["letters"]
+    number_lower_line = number.lower()
+    number_lower_no_line = number_lower_line.replace("-", "")
+    thumb_width = 0
+
+    # faleno.jp 番号检查，都是大图，返回即可
+    if json_data["cover_from"] in ["faleno", "dahlia"]:
+        if json_data["cover"]:
+            LogBuffer.log().write(f"\n 🖼 HD Fanart found! ({json_data['cover_from']})({get_used_time(start_time)}s)")
+        return json_data
+
+    # prestige 图片有的是大图，需要检测图片分辨率
+    elif json_data["cover_from"] in ["prestige", "mgstage"]:
+        if json_data["cover"]:
+            thumb_width, h = get_imgsize(json_data["cover"])
+
+    # 片商官网查询
+    elif "official" in config.download_hd_pics:
+        # faleno.jp 番号检查
+        if re.findall(r"F[A-Z]{2}SS", number):
+            req_url = f"https://faleno.jp/top/works/{number_lower_no_line}/"
+            result, response = get_html(req_url)
+            if result:
+                temp_url = re.findall(
+                    r'src="((https://cdn.faleno.net/top/wp-content/uploads/[^_]+_)([^?]+))\?output-quality=', response
+                )
+                if temp_url:
+                    json_data["cover"] = temp_url[0][0]
+                    json_data["poster"] = temp_url[0][1] + "2125.jpg"
+                    json_data["cover_from"] = "faleno"
+                    json_data["poster_from"] = "faleno"
+                    trailer_temp = re.findall(r'class="btn09"><a class="pop_sample" href="([^"]+)', response)
+                    if trailer_temp:
+                        json_data["trailer"] = trailer_temp[0]
+                        json_data["trailer_from"] = "faleno"
+                    LogBuffer.log().write(f"\n 🖼 HD Fanart found! (faleno)({get_used_time(start_time)}s)")
+                    return json_data
+
+        # km-produce.com 番号检查
+        number_letter = letters.lower()
+        kmp_key = ["vrkm", "mdtm", "mkmp", "savr", "bibivr", "scvr", "slvr", "averv", "kbvr", "cbikmv"]
+        prestige_key = ["abp", "abw", "aka", "prdvr", "pvrbst", "sdvr", "docvr"]
+        if number_letter in kmp_key:
+            req_url = f"https://km-produce.com/img/title1/{number_lower_line}.jpg"
+            real_url = check_url(req_url)
+            if real_url:
+                json_data["cover"] = real_url
+                json_data["cover_from"] = "km-produce"
+                LogBuffer.log().write(f"\n 🖼 HD Fanart found! (km-produce)({get_used_time(start_time)}s)")
+                return json_data
+
+        # www.prestige-av.com 番号检查
+        elif number_letter in prestige_key:
+            number_num = re.findall(r"\d+", number)[0]
+            if number_letter == "abw" and int(number_num) > 280:
+                pass
             else:
-                LogBuffer.log().write(
-                    "\n 🔴 Fanart failed! 你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」 "
-                )
-                LogBuffer.error().write(
-                    "Fanart 下载失败！你可以到「设置」-「下载」，勾选「图片下载失败时，不视为失败！」"
-                )
-                return False
+                req_url = f"https://www.prestige-av.com/api/media/goods/prestige/{number_letter}/{number_num}/pb_{number_lower_line}.jpg"
+                if number_letter == "docvr":
+                    req_url = f"https://www.prestige-av.com/api/media/goods/doc/{number_letter}/{number_num}/pb_{number_lower_line}.jpg"
+                if get_imgsize(req_url)[0] >= 800:
+                    json_data["cover"] = req_url
+                    json_data["poster"] = req_url.replace("/pb_", "/pf_")
+                    json_data["cover_from"] = "prestige"
+                    json_data["poster_from"] = "prestige"
+                    LogBuffer.log().write(f"\n 🖼 HD Fanart found! (prestige)({get_used_time(start_time)}s)")
+                    return json_data
+
+
+    return json_data
 
 
 def extrafanart_download(json_data: JsonData, folder_new_path: str) -> Optional[bool]:

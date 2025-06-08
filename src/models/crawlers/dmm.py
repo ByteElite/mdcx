@@ -97,15 +97,18 @@ def get_tag(html):
         )
     return str(result).strip(" ['']").replace("', '", ",")
 
+def get_mini_cover(html):
+    temp_result = html.xpath('//meta[@property="og:image"]/@content')
+    return temp_result[0] if temp_result else ""
 
 def get_cover(html):
-    temp_result = html.xpath('//meta[@property="og:image"]/@content')
-    if temp_result:
-        result = re.sub(r"pics.dmm.co.jp", r"awsimgsrc.dmm.co.jp/pics_dig", temp_result[0])
+    res = get_mini_cover(html)
+    if get_mini_cover(html):
+        result = re.sub(r"pics.dmm.co.jp", r"awsimgsrc.dmm.co.jp/pics_dig", res)
         if check_url(result):
             return result.replace("ps.jpg", "pl.jpg")
         else:
-            return temp_result[0].replace("ps.jpg", "pl.jpg")
+            return res.replace("ps.jpg", "pl.jpg")
     else:
         return ""
 
@@ -625,6 +628,7 @@ def main(
             try:
                 actor = get_actor(html)  # 获取演员
                 cover_url = get_cover(html)  # 获取 cover
+                mini_cover = get_mini_cover(html)  # 获取小封面
                 outline = get_ountline(html)
                 tag = get_tag(html)
                 release = get_release(html)
@@ -668,6 +672,7 @@ def main(
                 "website": real_url,
                 "actor_photo": actor_photo,
                 "cover": cover_url,
+                "mini_cover": mini_cover,
                 "poster": poster_url,
                 "extrafanart": extrafanart,
                 "trailer": trailer,
