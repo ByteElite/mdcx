@@ -11,6 +11,9 @@ import deepl
 import langid
 import zhconv
 
+from ollama import chat
+from ollama import ChatResponse
+
 from models.base.number import get_number_letters
 from models.base.utils import get_used_time, remove_repeat
 from models.base.web import get_html, post_html
@@ -23,6 +26,28 @@ from models.signals import signal
 
 deepl_result = {}
 REGEX_KANA = re.compile(r"[\u3040-\u30ff]")  # 平假名/片假名
+
+
+def ollama_translate(title: str, outline: str) -> tuple[str, str, Optional[str]]:
+    e1 = None
+    e2 = None
+    if title:
+        title, e1 = _ollama_translate(title)
+    if outline:
+        outline, e2 = _ollama_translate(outline)
+    return title, outline, e1 or e2
+
+
+def _ollama_translate(msg: str) -> tuple[str, str]:
+    # 初始化客户端，指向 Ollama 的本地服务
+    querystr = "将下面的日文文本翻译成中文：" + msg
+    response: ChatResponse = chat(model='sakura-14b-v3.5', messages=[
+    {
+        'role': 'user',
+        'content': querystr,
+    },
+    ])
+    return response.message.content, ""
 
 
 def youdao_translate(title: str, outline: str):
@@ -499,7 +524,9 @@ def translate_title_outline(json_data: JsonData, movie_number: str):
                 if each == "youdao":  # 使用有道翻译
                     t, o, r = youdao_translate(trans_title, trans_outline)
                 elif each == "google":  # 使用 google 翻译
-                    t, o, r = google_translate(trans_title, trans_outline)
+                    ## 如果选择使用google翻译，其实使用了ollama的sakura模型
+                    t, o, r = ollama_translate(trans_title,trans_outline)
+                    # t, o, r = google_translate(trans_title, trans_outline)
                 else:  # 使用deepl翻译
                     t, o, r = deepl_translate(trans_title, trans_outline, "JA", json_data)
                 if r:
