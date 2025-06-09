@@ -531,7 +531,7 @@ def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: s
                     f"\n 🍀 Thumb done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
                 )
                 json_data["thumb_path"] = thumb_final_path
-        
+                return True
     else:
         LogBuffer.log().write("\n 🟠 Thumb url is empty! ")
     if thumb_path:
