@@ -480,18 +480,18 @@ def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: s
     keep_files = config.keep_files
 
     # 不保留不下载时删除返回
-    if ",thumb" not in keep_files and ",thumb" not in download_files:
+    if "thumb" not in keep_files and "thumb" not in download_files:
         if fanart_path and os.path.exists(fanart_path):
             delete_file(fanart_path)
         return True
 
     # 保留，并且本地存在 fanart.jpg，不下载返回
-    if ",thumb" in keep_files and fanart_path:
+    if "thumb" in keep_files and fanart_path:
         LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s)")
         return True
 
     # 不下载时，返回
-    if ",thumb" not in download_files:
+    if "thumb" not in download_files:
         return True
 
     # 尝试复制其他分集。看分集有没有下载，如果下载完成则可以复制，否则就自行下载
@@ -528,14 +528,14 @@ def thumb_download(json_data: JsonData, folder_new_path: str,thumb_final_path: s
                     Flags.file_done_dic[json_data["number"]].update(dic)
                 json_data["thumb_marked"] = False
                 LogBuffer.log().write(
-                    f"\n 🍀 Fanart done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
+                    f"\n 🍀 Thumb done! ({json_data['cover_from']})({get_used_time(start_time)}s) "
                 )
                 json_data["thumb_path"] = thumb_final_path
         
     else:
         LogBuffer.log().write("\n 🟠 Thumb url is empty! ")
     if thumb_path:
-        LogBuffer.log().write("\n 🟠 Thumb copy failed! 未找到 thumb 图片，将继续使用之前的图片！")
+        LogBuffer.log().write("\n 🟠 Thumb failed! 未找到 thumb 图片，将继续使用之前的图片！")
         LogBuffer.log().write(f"\n 🍀 Thumb done! (old)({get_used_time(start_time)}s)")
         return True
 

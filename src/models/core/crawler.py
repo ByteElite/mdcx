@@ -488,6 +488,7 @@ def _decide_websites(
         ("originalplot", "原简介", "outline_language", outline_jp_website_new_list),
         ("actor", "演员", "actor_language", actor_website_new_list),
         ("cover", "背景图", "title_language", thumb_website_new_list),
+        ("mini_cover", "迷你背景图", "title_language",["dmm"]),# only use dmm as the mini cover
         ("poster", "封面图", "title_language", poster_website_new_list),
         ("extrafanart", "剧照", "title_language", extrafanart_website_new_list),
         ("tag", "标签", "tag_language", tag_website_new_list),
